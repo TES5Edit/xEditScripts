@@ -1,5 +1,5 @@
 {
-	Purpose: Resolve Errors
+	Purpose: Unlevel/Relevel Leveled Lists
 	Game: The Elder Scrolls V: Skyrim
 	Author: fireundubh <fireundubh@gmail.com>
 	Version: 0.1
