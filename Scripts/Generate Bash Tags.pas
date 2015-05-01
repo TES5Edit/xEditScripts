@@ -3,20 +3,20 @@
 	Games: FO3/FNV/TES4/TES5
 	Author: fireundubh <fireundubh@gmail.com>
 	Version: 1.4.1 (based on "BASH tags autodetection.pas" v1.0)
-
+	
 	Description: This script detects up to 49 bash tags in FO3, FNV, TES4, and TES5 plugins.
-		Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
-		then use these tags to help you create more intelligent bashed patches.
-
+	Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
+	then use these tags to help you create more intelligent bashed patches.
+	
 	Requires mteFunctions (by matortheeternal):
-		https://github.com/matortheeternal/TES5EditScripts/blob/master/trunk/Edit%20Scripts/mteFunctions.pas
-
+	https://github.com/matortheeternal/TES5EditScripts/blob/master/trunk/Edit%20Scripts/mteFunctions.pas
+	
 	Not implemented:
-		Creatures.Blood, Deactivate, Deflst, Filter, NoMerge, Npc.EyesOnly, Npc.HairOnly,
-		R.Attributes-F, R.Attributes-M, R.AddSpells, R.ChangeSpells
-
+	Creatures.Blood, Deactivate, Deflst, Filter, NoMerge, Npc.EyesOnly, Npc.HairOnly,
+	R.Attributes-F, R.Attributes-M, R.AddSpells, R.ChangeSpells
+	
 	Future plans:
-		Support Oblivion (already do?)
+	Support Oblivion (already do?)
 }
 
 unit BashTagsDetector;
@@ -52,26 +52,25 @@ end;
 function CompareKeys(x, y: IInterface; debug: boolean): boolean;
 var
 	sx, sy: string;
-begin		
+begin
 	if (ConflictAllString(ContainingMainRecord(x)) = 'caUnknown')
 	or (ConflictAllString(ContainingMainRecord(x)) = 'caOnlyOne')
 	or (ConflictAllString(ContainingMainRecord(x)) = 'caNoConflict') then begin
 		Result := false;
 		exit;
 	end;
-	
+
 	sx := SortKeyEx(x);
 	sy := SortKeyEx(y);
-		
-	if IsEmptyKey(sx) and IsEmptyKey(sy) then
-		exit;	
+
+	if IsEmptyKey(sx) and IsEmptyKey(sy) then exit;
 
 	Result := sx <> sy;
-	
+
 	// double check with lowercase values
 	if Lowercase(sx) = Lowercase(sy) then
 		Result := false;
-	
+
 	if Result and debug then begin
 		PrintDebugE(x, y, '[CompareKeys] ' + tag);
 		AddMessage('-- [' + Format('%.2u', [GetLoadOrder(GetFile(ContainingMainRecord(x)))]) + '] [' + Signature(ContainingMainRecord(x)) + ':' + HexFormID(ContainingMainRecord(x)) + '] ' + SortKeyEx(x));
@@ -236,23 +235,23 @@ end;
 // Better SortKey
 function SortKeyEx(e: IInterface): string;
 var
-  i: integer;
+	i: integer;
 begin
-  Result := GetEditValue(e);
-  
-  // manipulate result for model paths - sometimes the same paths have different cases
-  if (pos('.nif', Lowercase(Result)) > 0) then
-  	Result := Lowercase(GetEditValue(e));
-  
-  for i := 0 to ElementCount(e) - 1 do begin
-  	if (pos('unknown', Lowercase(Name(ElementByIndex(e, i)))) > 0)
-  	or (pos('unused', Lowercase(Name(ElementByIndex(e, i)))) > 0) then
-  		exit;
-    if (Result <> '') then
-    	Result := Result + ';' + gav(ElementByIndex(e, i))
-    else
-    	Result := gav(ElementByIndex(e, i));
-  end;
+	Result := GetEditValue(e);
+
+	// manipulate result for model paths - sometimes the same paths have different cases
+	if (pos('.nif', Lowercase(Result)) > 0) then
+		Result := Lowercase(GetEditValue(e));
+
+	for i := 0 to ElementCount(e) - 1 do begin
+		if (pos('unknown', Lowercase(Name(ElementByIndex(e, i)))) > 0)
+		or (pos('unused', Lowercase(Name(ElementByIndex(e, i)))) > 0) then
+			exit;
+		if (Result <> '') then
+			Result := Result + ';' + gav(ElementByIndex(e, i))
+		else
+			Result := gav(ElementByIndex(e, i));
+	end;
 end;
 
 // ==================================================================
@@ -270,8 +269,7 @@ end;
 // Add the tag if the tag does not exist
 procedure AddTag(t: string);
 begin
-	if not TagExists(t) then
-		slTags.Add(t);
+	if not TagExists(t) then slTags.Add(t);
 end;
 
 // ==================================================================
@@ -284,14 +282,13 @@ var
 	ex, ey: IInterface;
 begin
 	// Exit if the tag already exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// exit if element is unknown or a flags element
 	if (pos('unknown', Lowercase(Path(x))) > 0)
 	or (pos('unused', Lowercase(Path(x))) > 0)
 	or (pos('flags', Lowercase(Path(x))) > 0)
-	or (pos('unknown', Lowercase(Path(y))) > 0) 
+	or (pos('unknown', Lowercase(Path(y))) > 0)
 	or (pos('unused', Lowercase(Path(y))) > 0)
 	or (pos('flags', Lowercase(Path(y))) > 0) then
 		exit;
@@ -320,10 +317,9 @@ begin
 		AddTag(tag);
 		exit;
 	end else
-	
+
 	// compare any number of elements with CompareKeys
-	if CompareKeys(x, y, debug) <> 0 then
-		AddTag(tag);
+	if CompareKeys(x, y, debug) <> 0 then AddTag(tag);
 end;
 
 // ==================================================================
@@ -344,8 +340,7 @@ begin
 	tag := 'Actors.ACBS';
 
 	// exit if the tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign ACBS elements
 	f := GetElement(e, 'ACBS');
@@ -358,7 +353,7 @@ begin
 			exit;
 		end;
 	end;
-	
+
 	// evaluate properties
 	EvaluateEx(f, fm, 'Fatigue', tag, debug);
 	EvaluateEx(f, fm, 'Level', tag, debug);
@@ -382,8 +377,7 @@ begin
 	tag := 'Actors.AIData';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign AIDT elements
 	a := GetElement(e, 'AIDT');
@@ -412,8 +406,7 @@ begin
 	tag := 'Actors.AIPackages';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// evaluate Packages property
 	EvaluateEx(e, m, 'Packages', tag, debug);
@@ -429,8 +422,7 @@ begin
 	tag := 'Factions';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign Factions properties
 	f := GetElement(e, 'Factions');
@@ -444,12 +436,10 @@ begin
 	end;
 
 	// exit if the Factions property in the control record does not exist
-	if not Assigned(f) then
-		exit;
+	if not Assigned(f) then exit;
 
 	// evaluate Factions properties
-	if CompareKeys(f, fm, debug) then
-		AddTag(tag);
+	if CompareKeys(f, fm, debug) then AddTag(tag);
 end;
 
 // ==================================================================
@@ -462,16 +452,14 @@ begin
 	tag := 'Actors.Skeleton';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign Model elements
 	x := GetElement(e, 'Model');
 	y := GetElement(m, 'Model');
 
 	// exit if the Model property does not exist in the control record
-	if not Assigned(x) then
-		exit;
+	if not Assigned(x) then exit;
 
 	// evaluate properties
 	EvaluateEx(x, y, 'MODL', tag, debug);
@@ -490,8 +478,7 @@ begin
 	tag := 'Actors.Stats';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// get record signature
 	sig := Signature(e);
@@ -528,8 +515,7 @@ begin
 	tag := 'C.Climate';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// add tag if the Behave Like Exterior flag is set ine one record but not the other
 	if CompareFlagsEx(e, m, 'DATA', 'Behave Like Exterior') then begin
@@ -555,8 +541,7 @@ begin
 	sig := Signature(e);
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// compare Record Flags elements
 	if CompareKeys(GetElement(e, 'Record Header\Record Flags'), GetElement(m, 'Record Header\Record Flags'), debug) then
@@ -566,15 +551,12 @@ end;
 // ==================================================================
 // C.Water
 procedure CheckCellWater(e, m: IInterface; debug: boolean);
-var
-	d, dm: IInterface;
 begin
 	// define tag
 	tag := 'C.Water';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// add tag if Has Water flag is set in one record but not the other
 	if CompareFlagsEx(e, m, 'DATA', 'Has Water') then begin
@@ -584,8 +566,7 @@ begin
 	end;
 
 	// exit if Is Interior Cell is set in either record
-	if CompareFlagsOr(e, m, 'DATA', 'Is Interior Cell') then
-		exit;
+	if CompareFlagsOr(e, m, 'DATA', 'Is Interior Cell') then exit;
 
 	// evaluate properties
 	EvaluateEx(e, m, 'XCLW', tag, debug);
@@ -603,8 +584,7 @@ var
 	s1, s2: string; // sortkeys for extra data, sortkey is a compact text representation of element's values
 begin
 	// nothing to do if already tagged
-	if TagExists('Delev') and TagExists('Relev') then
-		exit;
+	if TagExists('Delev') and TagExists('Relev') then exit;
 
 	// get Leveled List Entries
 	entries := GetElement(e, 'Leveled List Entries');
@@ -630,6 +610,7 @@ begin
 
 			if Assigned(coed) then
 				s1 := SortKey(coed, True) else s1 := '';
+			
 			if Assigned(coedm) then
 				s2 := SortKey(coedm, True) else s2 := '';
 
@@ -661,19 +642,18 @@ begin
 	tag := 'Destructible';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign Destructable elements
 	d := GetElement(e, 'Destructable');
 	dm := GetElement(m, 'Destructable');
-	
+
 	if Assigned(d) <> Assigned (dm) then begin
 		if debug then PrintDebugE(d, dm, '[Assigned] ' + tag);
 		AddTag(tag);
 		exit;
 	end;
-	
+
 	// evaluate Destructable properties
 	EvaluateEx(d, dm, 'DEST\Health', tag, debug);
 	EvaluateEx(d, dm, 'DEST\Count', tag, debug);
@@ -684,17 +664,16 @@ begin
 		if ElementExists(d, 'DEST\Flags') or ElementExists(dm, 'DEST\Flags') then begin
 			df := GetElement(d, 'DEST\Flags');
 			dfm := GetElement(d, 'DEST\Flags');
-		
+
 			// add tag if Destructable flags exist in one record
 			if Assigned(df) <> Assigned(dfm) then begin
 				if debug then PrintDebugE(df, dfm, '[Assigned] ' + tag);
 				AddTag(tag);
 				exit;
 			end;
-			
+
 			// evaluate Destructable flags
-			if CompareKeys(df, dfm, debug) then
-				AddTag(tag);
+			if CompareKeys(df, dfm, debug) then AddTag(tag);
 		end;
 	end;
 end;
@@ -711,19 +690,18 @@ begin
 	tag := 'Graphics';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
-		
+	if TagExists(tag) then exit;
+
 	// get signature of control record
 	sig := Signature(e);
 
 	// evaluate Icon properties
 	if InSignatureList(sig, 'ALCH, AMMO, APPA, BOOK, BSGN, CLAS, INGR, KEYM, LIGH, LSCR, LTEX, MGEF, MISC, REGN, SGST, SLGM, TREE, WEAP') then
-		EvaluateEx(e, m, 'Icon', tag, debug);
+	EvaluateEx(e, m, 'Icon', tag, debug);
 
 	// evaluate Model properties
 	if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, BOOK, DOOR, FLOR, FURN, GRAS, INGR, KEYM, LIGH, MGEF, MISC, SGST, SLGM, STAT, TREE, WEAP') then
-		EvaluateEx(e, m, 'Model', tag, debug);
+	EvaluateEx(e, m, 'Model', tag, debug);
 
 	// evaluate ARMO properties
 	if (sig = 'ARMO') then begin
@@ -739,8 +717,7 @@ begin
 
 			// assign First Person Flags elements
 			fpf := GetElement(e, 'BODT\First Person Flags');
-			if not Assigned(fpf) then
-				exit;
+			if not Assigned(fpf) then exit;
 			fpfm := GetElement(m, 'BODT\First Person Flags');
 
 			// evaluate First Person Flags
@@ -751,8 +728,7 @@ begin
 
 			// assign General Flags elements
 			gf := GetElement(e, 'BODT\General Flags');
-			if not Assigned(gf) then
-				exit;
+			if not Assigned(gf) then exit;
 			gfm := GetElement(m, 'BODT\General Flags');
 
 			// evaluate General Flags
@@ -761,7 +737,7 @@ begin
 				exit;
 			end;
 
-		// Skyrim
+			// Skyrim
 		end else begin
 			// evaluate Icon properties
 			// TODO: check Obl/Sky for paths
@@ -793,10 +769,10 @@ begin
 
 	// evaluate EFSH properties
 	if (sig = 'EFSH') then begin
-		// evaluate Record Flags		
+		// evaluate Record Flags
 		rf := GetElement(e, 'Record Header\Record Flags');
 		rfm := GetElement(m, 'Record Header\Record Flags');
-		
+
 		if CompareKeys(rf, rfm, debug) then begin
 			AddTag(tag);
 			exit;
@@ -837,8 +813,7 @@ begin
 	tag := 'Invent';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// assign Items properties
 	items := GetElement(e, 'Items');
@@ -852,13 +827,11 @@ begin
 	end;
 
 	// exit if Items property does not exist in control record
-	if not Assigned(items) then
-		exit;
+	if not Assigned(items) then exit;
 
 	// Items are sorted, so we don't need to compare by individual item
 	// SortKey combines all the items data
-	if CompareKeys(items, itemsmaster, debug) then
-		AddTag(tag);
+	if CompareKeys(items, itemsmaster, debug) then AddTag(tag);
 end;
 
 // ==================================================================
@@ -869,8 +842,7 @@ begin
 	tag := 'NpcFaces';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// evaluate properties
 	EvaluateEx(e, m, 'HNAM', tag, debug);
@@ -885,16 +857,15 @@ end;
 procedure CheckRaceBody(e, m: IInterface; tag: string; debug: boolean);
 begin
 	// define tag
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// evaluate Body-F properties
 	if (tag = 'Body-F') then
-		EvaluateEx(e, m, 'Body Data\Female Body Data\Parts', tag, debug);
+	EvaluateEx(e, m, 'Body Data\Female Body Data\Parts', tag, debug);
 
 	// evaluate Body-M properties
 	if (tag = 'Body-M') then
-		EvaluateEx(e, m, 'Body Data\Male Body Data\Parts', tag, debug);
+	EvaluateEx(e, m, 'Body Data\Male Body Data\Parts', tag, debug);
 
 	// evaluate Body-Size-F properties
 	if (tag = 'Body-Size-F') then begin
@@ -914,8 +885,7 @@ end;
 procedure CheckRaceHead(e, m: IInterface; tag: string; debug: boolean);
 begin
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// evaluate R.Head properties
 	if (tag = 'R.Head') then begin
@@ -956,8 +926,7 @@ var
 	sig: string;
 begin
 	tag := 'Sound';
-	if TagExists(tag) then
-			exit;
+	if TagExists(tag) then exit;
 
 	sig := Signature(e);
 
@@ -1019,8 +988,7 @@ begin
 	tag := 'SpellStats';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// evaluate properties
 	EvaluateEx(e, m, 'FULL', tag, debug);
@@ -1038,8 +1006,7 @@ begin
 	tag := 'Stats';
 
 	// exit if tag exists
-	if TagExists(tag) then
-		exit;
+	if TagExists(tag) then exit;
 
 	// get record signature
 	sig := Signature(e);
@@ -1062,25 +1029,17 @@ end;
 // ==================================================================
 // Debug Message
 procedure PrintDebugE(x, y: IInterface; t: string);
-var
-	o1, o2: string;
 begin
-	o1 := TrimLeft(FullPath(x));
-	o2 := TrimLeft(FullPath(y));
-	AddMessage(t + ': ' + o1);
-	AddMessage(t + ': ' + o2);
+	AddMessage(t + ': ' + TrimLeft(FullPath(x)));
+	AddMessage(t + ': ' + TrimLeft(FullPath(y)));
 end;
 
 // ==================================================================
 // Debug Message
 procedure PrintDebugS(x, y: IInterface; p, t: string);
-var
-	o1, o2: string;
 begin
-	o1 := TrimLeft(FullPath(GetElement(x, p)));
-	o2 := TrimLeft(FullPath(GetElement(y, p)));
-	AddMessage(t + ': ' + o1);
-	AddMessage(t + ': ' + o2);
+	AddMessage(t + ': ' + TrimLeft(FullPath(GetElement(x, p))));
+	AddMessage(t + ': ' + TrimLeft(FullPath(GetElement(y, p))));
 end;
 
 
@@ -1098,8 +1057,7 @@ begin
 	optionSelected := MessageDlg('Do you want to write any found tags to the file header?', mtConfirmation, [mbYes, mbNo, mbAbort], 0);
 
 	// exit if the user aborted
-	if optionSelected = mrAbort then
-		exit;
+	if optionSelected = mrAbort then exit;
 
 	// create list of tags
 	slTags := TStringList.Create;
@@ -1127,31 +1085,30 @@ begin
 	or (Signature(e) = 'TES4')									// record is the file header
 	or (ConflictAllString(e) = 'caUnknown')			// unknown conflict status
 	or (ConflictAllString(e) = 'caOnlyOne')			// record neither conflicts nor overrides
-	or (ConflictAllString(e) = 'caNoConflict')	// no conflict
-	then exit;
+	or (ConflictAllString(e) = 'caNoConflict') then	// no conflict
+		exit;
 
 	// get file and file name
 	f := GetFile(e);
 	fn := GetFileName(f);
 
 	// exit if the record should not be processed
-	if (fn = 'Dawnguard.esm') and InIgnoreList(HexFormID(e), '00016BCF, 0001EE6D, 0001FA4C, 00039F67, 0006C3B6') then
+	if (fn = 'Dawnguard.esm')
+	and InIgnoreList(HexFormID(e), '00016BCF, 0001EE6D, 0001FA4C, 00039F67, 0006C3B6') then
 		exit;
 
 	// get master record
 	o := Master(e);
 
 	// exit if the override does not exist
-	if not Assigned(o) then
-		exit;
+	if not Assigned(o) then exit;
 
 	// if record overrides several masters, then get the last one
 	if OverrideCount(o) > 1 then
 		o := OverrideByIndex(o, OverrideCount(o) - 2);
 
 	// v1.3.4: stop processing deleted records to avoid errors
-	if GetIsDeleted(e) or GetIsDeleted(o) then
-		exit;
+	if GetIsDeleted(e) or GetIsDeleted(o) then exit;
 
 	// get record signature
 	sig := Signature(e);
