@@ -124,15 +124,15 @@ var
 	i: integer;
 begin
 	// create flag lists
-	flags					:= TStringList.Create;
-	templateFlags	:= TStringList.Create;
-	cellFlags			:= TStringList.Create;
-	recordFlags		:= TStringList.Create;
+	flags := TStringList.Create;
+	templateFlags := TStringList.Create;
+	cellFlags := TStringList.Create;
+	recordFlags := TStringList.Create;
 
 	// assign flag lists
-	templateFlags.DelimitedText	:= '"Use Traits=1", "Use Stats=2", "Use Factions=4", "Use Spell List=8", "Use Actor Effect List=8", "Use AI Data=16", "Use AI Packages=32", "Use Model/Animation=64", "Use Base Data=128", "Use Inventory=256", "Use Script=512", "Use Def Pack List=1024", "Use Attack Data=2048", "Use Keywords=4096"';
-	cellFlags.DelimitedText			:= '"Is Interior Cell=1", "Has Water=2", "Behave Like Exterior=128"';
-	recordFlags.DelimitedText		:= '"ESM=1", "Deleted=32", "Border Region=64", "Turn Off Fire=128", "Casts Shadows=512", "Persistent Reference=1024", "Initially Disabled=2048", "Ignored=4096", "Visible When Distant=32768", "Dangerous=131072", "Compressed=262144", "Cant Wait=524288"';
+	templateFlags.DelimitedText := '"Use Traits=1", "Use Stats=2", "Use Factions=4", "Use Spell List=8", "Use Actor Effect List=8", "Use AI Data=16", "Use AI Packages=32", "Use Model/Animation=64", "Use Base Data=128", "Use Inventory=256", "Use Script=512", "Use Def Pack List=1024", "Use Attack Data=2048", "Use Keywords=4096"';
+	cellFlags.DelimitedText := '"Is Interior Cell=1", "Has Water=2", "Behave Like Exterior=128"';
+	recordFlags.DelimitedText := '"ESM=1", "Deleted=32", "Border Region=64", "Turn Off Fire=128", "Casts Shadows=512", "Persistent Reference=1024", "Initially Disabled=2048", "Ignored=4096", "Visible When Distant=32768", "Dangerous=131072", "Compressed=262144", "Cant Wait=524288"';
 
 	// merge flag lists
 	flags.AddStrings(templateFlags);
@@ -589,9 +589,7 @@ begin
 	// get Leveled List Entries
 	entries := GetElement(e, 'Leveled List Entries');
 	entriesmaster := GetElement(m, 'Leveled List Entries');
-	if not Assigned(entries)
-	or not Assigned(entriesmaster) then
-		exit;
+	if not Assigned(entries) or not Assigned(entriesmaster) then exit;
 
 	// count matched on reference entries
 	matched := 0;
@@ -697,11 +695,11 @@ begin
 
 	// evaluate Icon properties
 	if InSignatureList(sig, 'ALCH, AMMO, APPA, BOOK, BSGN, CLAS, INGR, KEYM, LIGH, LSCR, LTEX, MGEF, MISC, REGN, SGST, SLGM, TREE, WEAP') then
-	EvaluateEx(e, m, 'Icon', tag, debug);
+		EvaluateEx(e, m, 'Icon', tag, debug);
 
 	// evaluate Model properties
 	if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, BOOK, DOOR, FLOR, FURN, GRAS, INGR, KEYM, LIGH, MGEF, MISC, SGST, SLGM, STAT, TREE, WEAP') then
-	EvaluateEx(e, m, 'Model', tag, debug);
+		EvaluateEx(e, m, 'Model', tag, debug);
 
 	// evaluate ARMO properties
 	if (sig = 'ARMO') then begin
@@ -1382,10 +1380,7 @@ var
 	hdr, desc: IInterface;
 begin
 	// exit conditions
-	if (optionSelected = mrAbort)
-	or (not Assigned(slTags))
-	or (not Assigned(fn)) then
-		exit;
+	if (optionSelected = mrAbort) or (not Assigned(slTags)) or (not Assigned(fn)) then exit;
 
 	// sort list of tags
 	slTags.Sort;
