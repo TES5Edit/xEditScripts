@@ -2,7 +2,7 @@
 	Purpose: Automatic Bash Tag Generation
 	Games: FO3/FNV/TES4/TES5
 	Author: fireundubh <fireundubh@gmail.com>
-	Version: 1.4.1 (based on "BASH tags autodetection.pas" v1.0)
+	Version: 1.4.1.1 (based on "BASH tags autodetection.pas" v1.0)
 	
 	Description: This script detects up to 49 bash tags in FO3, FNV, TES4, and TES5 plugins.
 	Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
@@ -248,9 +248,9 @@ begin
 		or (pos('unused', Lowercase(Name(ElementByIndex(e, i)))) > 0) then
 			exit;
 		if (Result <> '') then
-			Result := Result + ';' + gav(ElementByIndex(e, i))
+			Result := Result + ';' + SortKeyEx(ElementByIndex(e, i))
 		else
-			Result := gav(ElementByIndex(e, i));
+			Result := SortKeyEx(ElementByIndex(e, i));
 	end;
 end;
 
