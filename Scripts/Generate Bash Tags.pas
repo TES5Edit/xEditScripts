@@ -2,7 +2,7 @@
 	Purpose: Automatic Bash Tag Generation
 	Games: FO3/FNV/TES4/TES5
 	Author: fireundubh <fireundubh@gmail.com>
-	Version: 1.4.1.2 (based on "BASH tags autodetection.pas" v1.0)
+	Version: 1.4.1.3 (based on "BASH tags autodetection.pas" v1.0)
 	
 	Description: This script detects up to 49 bash tags in FO3, FNV, TES4, and TES5 plugins.
 	Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
@@ -165,34 +165,6 @@ begin
 		end;
 		Result := true;
 	end;
-end;
-
-// ==================================================================
-// Return true if the loaded game is Fallout 3
-function IsFallout3(): boolean;
-begin
-	Result := (GetFileName(FileByLoadOrder(00)) = 'Fallout3.esm');
-end;
-
-// ==================================================================
-// Return true if the loaded game is Fallout: New Vegas
-function IsFalloutNV(): boolean;
-begin
-	Result := (GetFileName(FileByLoadOrder(00)) = 'FalloutNV.esm');
-end;
-
-// ==================================================================
-// Return true if the loaded game is TES4: Oblivion
-function IsOblivion(): boolean;
-begin
-	Result := (GetFileName(FileByLoadOrder(00)) = 'Oblivion.esm');
-end;
-
-// ==================================================================
-// Return true if the loaded game is TES4: Skyrim
-function IsSkyrim(): boolean;
-begin
-	Result := (GetFileName(FileByLoadOrder(00)) = 'Skyrim.esm');
 end;
 
 // ==================================================================
@@ -661,7 +633,7 @@ begin
 	EvaluateEx(d, dm, 'Stages', tag, debug);
 
 	// assign Destructable flags
-	if not IsSkyrim() then begin
+	if not (wbGameMode = gmTES5) then begin
 		if ElementExists(dd, 'Flags') or ElementExists(dmd, 'Flags') then begin
 			df := GetElement(dd, 'Flags');
 			dfm := GetElement(dmd, 'Flags');
@@ -711,7 +683,7 @@ begin
 		EvaluateEx(e, m, 'Female world model', tag, debug);
 
 		// FNV, FO3, Oblivion
-		if IsSkyrim() then begin
+		if (wbGameMode = gmTES5) then begin
 			// evaluate Icon properties
 			EvaluateEx(e, m, 'Icon', tag, debug);
 			EvaluateEx(e, m, 'Icon 2 (female)', tag, debug);
@@ -785,7 +757,7 @@ begin
 
 		// evaluate other properties
 		EvaluateEx(e, m, 'NAM7', tag, debug);
-		if IsSkyrim() then begin
+		if (wbGameMode = gmTES5) then begin
 			EvaluateEx(e, m, 'NAM8', tag, debug);
 			EvaluateEx(e, m, 'NAM9', tag, debug);
 		end;
@@ -793,7 +765,7 @@ begin
 	end;
 
 	// v1.4: evaluate MGEF properties
-	if (sig = 'MGEF') and IsSkyrim() then begin
+	if (sig = 'MGEF') and (wbGameMode = gmTES5) then begin
 		EvaluateEx(e, m, 'Magic Effect Data\DATA\Casting Light', tag, debug);
 		EvaluateEx(e, m, 'Magic Effect Data\DATA\Hit Shader', tag, debug);
 		EvaluateEx(e, m, 'Magic Effect Data\DATA\Enchant Shader', tag, debug);
@@ -913,7 +885,7 @@ begin
 		EvaluateEx(e, m, 'Head Data\Female Head Data\Parts\[3]', tag, debug);
 
 		// FO3
-		if IsFallout3() then begin
+		if (wbGameMode = gmFO3) then begin
 			EvaluateEx(e, m, 'Head Data\Male Head Data\Parts\[4]', tag, debug);
 			EvaluateEx(e, m, 'Head Data\Female Head Data\Parts\[4]', tag, debug);
 		end;
@@ -942,7 +914,7 @@ begin
 	// Containers
 	if (sig = 'CONT') then begin
 		EvaluateEx(e, m, 'QNAM', tag, debug);
-		if not IsFallout3() or not IsSkyrim() then
+		if not (wbGameMode = gmFO3) or not (wbGameMode = gmTES5) then
 			EvaluateEx(e, m, 'RNAM', tag, debug); // FO3 and TESV don't have this element
 	end;
 
@@ -964,11 +936,11 @@ begin
 	// Magic Effects
 	if (sig = 'MGEF') then begin
 		// TES5
-		if IsSkyrim() then
+		if (wbGameMode = gmTES5) then
 			EvaluateEx(e, m, 'SNDD', tag, debug);
 
 		// FO3, FNV, TES4
-		if not IsSkyrim() then begin
+		if not (wbGameMode = gmTES5) then begin
 			EvaluateEx(e, m, 'DATA\Effect sound', tag, debug);
 			EvaluateEx(e, m, 'DATA\Bolt sound', tag, debug);
 			EvaluateEx(e, m, 'DATA\Hit sound', tag, debug);
@@ -1065,10 +1037,10 @@ begin
 	slTags.Delimiter := ','; // separated by comma
 
 	AddMessage(#13#10 + '-------------------------------------------------------------------------------');
-	if IsFallout3() then AddMessage('Using record structure for Fallout 3');
-	if IsFalloutNV() then AddMessage('Using record structure for Fallout: New Vegas');
-	if IsOblivion() then AddMessage('Using record structure for The Elder Scrolls IV: Oblivion');
-	if IsSkyrim() then AddMessage('Using record structure for The Elder Scrolls V: Skyrim');
+	if (wbGameMode = gmFO3) then AddMessage('Using record structure for Fallout 3');
+	if (wbGameMode = gmFNV) then AddMessage('Using record structure for Fallout: New Vegas');
+	if (wbGameMode = gmTES4) then AddMessage('Using record structure for The Elder Scrolls IV: Oblivion');
+	if (wbGameMode = gmTES5) then AddMessage('Using record structure for The Elder Scrolls V: Skyrim');
 	AddMessage('-------------------------------------------------------------------------------');
 end;
 
@@ -1118,7 +1090,7 @@ begin
 	// FALLOUT 3 | FALLOUT: NEW VEGAS | SKYRIM
 	// ==========================================================================
 
-	if IsFallout3() or IsFalloutNV() or IsSkyrim() then begin
+	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) or (wbGameMode = gmTES5) then begin
 
 		// ------------------------------------------------------------------------
 		// CELL RECORD TYPE
@@ -1141,7 +1113,7 @@ begin
 			EvaluateEx(e, o, 'XCLL', 'C.Light', true);
 
 			// C.Location
-			if IsSkyrim() then
+			if (wbGameMode = gmTES5) then
 				EvaluateEx(e, o, 'XLCN', 'C.Location', true);
 
 			// C.Music
