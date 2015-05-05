@@ -2,7 +2,7 @@
 	Purpose: Automatic Bash Tag Generation
 	Games: FO3/FNV/TES4/TES5
 	Author: fireundubh <fireundubh@gmail.com>
-	Version: 1.4.1.1 (based on "BASH tags autodetection.pas" v1.0)
+	Version: 1.4.1.2 (based on "BASH tags autodetection.pas" v1.0)
 	
 	Description: This script detects up to 49 bash tags in FO3, FNV, TES4, and TES5 plugins.
 	Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
@@ -634,7 +634,7 @@ end;
 // Destructible
 procedure CheckDestructible(e, m: IInterface; debug: boolean);
 var
-	d, dm, df, dfm: IInterface;
+	d, dm, df, dfm, dd, dmd: IInterface;
 begin
 	// define tag
 	tag := 'Destructible';
@@ -651,17 +651,20 @@ begin
 		AddTag(tag);
 		exit;
 	end;
+	
+	dd := GetElement(d, 'DEST');
+	dmd := GetElement(dm, 'DEST');
 
 	// evaluate Destructable properties
-	EvaluateEx(d, dm, 'DEST\Health', tag, debug);
-	EvaluateEx(d, dm, 'DEST\Count', tag, debug);
+	EvaluateEx(dd, dmd, 'Health', tag, debug);
+	EvaluateEx(dd, dmd, 'Count', tag, debug);
 	EvaluateEx(d, dm, 'Stages', tag, debug);
 
 	// assign Destructable flags
 	if not IsSkyrim() then begin
-		if ElementExists(d, 'DEST\Flags') or ElementExists(dm, 'DEST\Flags') then begin
-			df := GetElement(d, 'DEST\Flags');
-			dfm := GetElement(d, 'DEST\Flags');
+		if ElementExists(dd, 'Flags') or ElementExists(dmd, 'Flags') then begin
+			df := GetElement(dd, 'Flags');
+			dfm := GetElement(dmd, 'Flags');
 
 			// add tag if Destructable flags exist in one record
 			if Assigned(df) <> Assigned(dfm) then begin
