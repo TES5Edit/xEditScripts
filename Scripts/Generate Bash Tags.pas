@@ -2,21 +2,26 @@
 	Purpose: Automatic Bash Tag Generation
 	Games: FO3/FNV/TES4/TES5
 	Author: fireundubh <fireundubh@gmail.com>
-	Version: 1.4.1.3 (based on "BASH tags autodetection.pas" v1.0)
-	
-	Description: This script detects up to 49 bash tags in FO3, FNV, TES4, and TES5 plugins.
-	Tags can automatically replace the Description in the File Header. Wrye Bash/Flash can
+	Version: 1.5.1.1
+
+	Description: This script detects up to 58 bash tags in FO3, FNV, TES4, and TES5 plugins.
+	Tags can be automatically added to the Description in the File Header. Wrye Bash/Flash can
 	then use these tags to help you create more intelligent bashed patches.
-	
-	Requires mteFunctions (by matortheeternal):
+
+	Requires mteFunctions:
 	https://github.com/matortheeternal/TES5EditScripts/blob/master/trunk/Edit%20Scripts/mteFunctions.pas
-	
-	Not implemented:
-	Creatures.Blood, Deactivate, Deflst, Filter, NoMerge, Npc.EyesOnly, Npc.HairOnly,
-	R.Attributes-F, R.Attributes-M, R.AddSpells, R.ChangeSpells
-	
-	Future plans:
-	Support Oblivion (already do?)
+
+	Credits:
+	- zilav (BASH tags autodetection.pas v1.0)
+	- matortheeternal (mteFunctions.pas)
+
+	Testers:
+	- alt3rn1ty
+	- Arthmoor
+	- InsanePlumber
+	- matortheeternal
+	- Sharlikran
+	- zilav
 }
 
 unit BashTagsDetector;
@@ -37,14 +42,14 @@ var
 // Returns True if the flags set are different and False if not
 function CompareFlagsEx(x, y: IInterface; p, f: string): boolean;
 begin
-	Result := (HasFlag(GetElement(x, p), f) <> HasFlag(GetElement(y, p), f));
+	Result := (HasFlag(GetElement(x, p), f) <> HasFlag(GetElement(y, p), f)); // Comparison: <>
 end;
 
 // ==================================================================
-// Returns True if the any two flags are set and False if not
+// Returns True if any two flags are set and False if not
 function CompareFlagsOr(x, y: IInterface; p, f: string): boolean;
 begin
-	Result := (HasFlag(GetElement(x, p), f) or HasFlag(GetElement(y, p), f));
+	Result := (HasFlag(GetElement(x, p), f) or HasFlag(GetElement(y, p), f)); // Comparison: or
 end;
 
 // ==================================================================
@@ -73,8 +78,6 @@ begin
 
 	if Result and debug then begin
 		PrintDebugE(x, y, '[CompareKeys] ' + tag);
-		AddMessage('-- [' + Format('%.2u', [GetLoadOrder(GetFile(ContainingMainRecord(x)))]) + '] [' + Signature(ContainingMainRecord(x)) + ':' + HexFormID(ContainingMainRecord(x)) + '] ' + SortKeyEx(x));
-		AddMessage('-- [' + Format('%.2u', [GetLoadOrder(GetFile(ContainingMainRecord(y)))]) + '] [' + Signature(ContainingMainRecord(y)) + ':' + HexFormID(ContainingMainRecord(y)) + '] ' + SortKeyEx(y));
 	end;
 end;
 
@@ -93,7 +96,7 @@ begin
 		Result := ElementByIP(x, s)
 	else if (pos('\', s) > 0) then
 		Result := ElementByPath(x, s)
-	else if IsUppercase(s) then
+	else if (s = Uppercase(s)) then
 		Result := ElementBySignature(x, s)
 	else
 		Result := ElementByName(x, s);
@@ -117,6 +120,35 @@ begin
 end;
 
 // ==================================================================
+// Retrieve a string between two expressions
+function GetSubstring(input, expr1, expr2: string): string;
+var
+	pos1, pos2, len: integer;
+begin
+  pos1 := ItPos(expr1, input, 1) + length(expr1);
+  pos2 := ItPos(expr2, input, 1);
+  len := pos2 - pos1;
+  Result := Copy(input, pos1, len);
+end;
+
+// ==================================================================
+// Generate a list from the differences between list1 and list2
+// -- list1: existing tags, for example
+// -- list2: suggested tags, for example
+function GetDiffList(list1, list2: TStringList): string;
+var
+	i, j: integer;
+begin
+	for i := list1.Count - 1 downto 0 do begin
+		for j := list2.Count - 1 downto 0 do begin
+			if list2[j] = list1[i] then
+				list2.Delete(j);
+		end;
+	end;
+	Result := list2.CommaText;
+end;
+
+// ==================================================================
 // Return True if specific flag is set and False if not
 function HasFlag(f: IInterface; s: string): boolean;
 var
@@ -131,7 +163,7 @@ begin
 
 	// assign flag lists
 	templateFlags.DelimitedText := '"Use Traits=1", "Use Stats=2", "Use Factions=4", "Use Spell List=8", "Use Actor Effect List=8", "Use AI Data=16", "Use AI Packages=32", "Use Model/Animation=64", "Use Base Data=128", "Use Inventory=256", "Use Script=512", "Use Def Pack List=1024", "Use Attack Data=2048", "Use Keywords=4096"';
-	cellFlags.DelimitedText := '"Is Interior Cell=1", "Has Water=2", "Behave Like Exterior=128"';
+	cellFlags.DelimitedText := '"Is Interior Cell=1", "Has Water=2", "Behave Like Exterior=128", "Use Sky Lighting=256"';
 	recordFlags.DelimitedText := '"ESM=1", "Deleted=32", "Border Region=64", "Turn Off Fire=128", "Casts Shadows=512", "Persistent Reference=1024", "Initially Disabled=2048", "Ignored=4096", "Visible When Distant=32768", "Dangerous=131072", "Compressed=262144", "Cant Wait=524288"';
 
 	// merge flag lists
@@ -168,13 +200,6 @@ begin
 end;
 
 // ==================================================================
-// Returns True if the string is uppercase and False if not
-function IsUppercase(x: string): boolean;
-begin
-	Result := (x = Uppercase(x));
-end;
-
-// ==================================================================
 // Returns True if the x FormID is in the y list of FormIDs to ignore
 // z is the file that contains the FormIDs to ignore
 function InIgnoreList(x, y: string): boolean;
@@ -201,6 +226,21 @@ begin
 	i := signatures.IndexOf(x);
 	signatures.Free;
 	Result := (i > -1);
+end;
+
+// ==================================================================
+// Output bad tag messages to log
+function GenerateTagOutput(tags: TStringList; singular, plural, nothing: string): integer;
+begin
+	if (tags.Count = 1) then
+		AddMessage(IntToStr(tags.Count) + ' ' + singular);
+	if (tags.Count > 1) then
+		AddMessage(IntToStr(tags.Count) + ' ' + plural);
+	if (tags.Count > 0) then begin
+		AddMessage(Format('{{BASH:%s}}', [tags.DelimitedText]) + #13#10);
+	end else begin
+		AddMessage(nothing + #13#10);
+	end;
 end;
 
 // ==================================================================
@@ -284,7 +324,7 @@ begin
 	end else
 
 	// suggest tag if the edit values of the two elements are different
-	if GetEditValue(x) <> GetEditValue(y) then begin
+	if Lowercase(GetEditValue(x)) <> Lowercase(GetEditValue(y)) then begin
 		if debug then PrintDebugE(x, y, '[GetEditValue] ' + tag);
 		AddTag(tag);
 		exit;
@@ -296,14 +336,13 @@ end;
 
 // ==================================================================
 // EvaluateEx
-// Improved Evaluate with GetElement
 procedure EvaluateEx(x, y: IInterface; z: string; tag: string; debug: boolean);
 begin
 	Evaluate(GetElement(x, z), GetElement(y, z), tag, debug);
 end;
 
 // ==================================================================
-// v1.3.3 - Actors.ACBS
+// Actors.ACBS
 procedure CheckActorsACBS(e, m: IInterface; debug: boolean);
 var
 	f, fm: IInterface;
@@ -319,10 +358,17 @@ begin
 	fm := GetElement(m, 'ACBS');
 
 	// evaluate Flags if the Use Base Data flag is not set
-	if not CompareFlagsOr(f, fm, 'Template Flags', 'Use Base Data') then begin
+	if (wbGameMode = gmTES4) then begin
 		if CompareKeys(GetElement(f, 'Flags'), GetElement(fm, 'Flags'), debug) then begin
 			AddTag(tag);
 			exit;
+		end;
+	end else begin
+		if not CompareFlagsOr(f, fm, 'Template Flags', 'Use Base Data') then begin
+			if CompareKeys(GetElement(f, 'Flags'), GetElement(fm, 'Flags'), debug) then begin
+				AddTag(tag);
+				exit;
+			end;
 		end;
 	end;
 
@@ -335,8 +381,12 @@ begin
 	EvaluateEx(e,  m, 'DATA\Base Health', tag, debug);
 
 	// evaluate Barter Gold if the Use AI Data flag is not set
-	if not CompareFlagsOr(f, fm, 'Template Flags', 'Use AI Data') then
+	if (wbGameMode = gmTES4) then begin
 		EvaluateEx(f, fm, 'Barter gold', tag, debug);
+	end else begin
+		if not CompareFlagsOr(f, fm, 'Template Flags', 'Use AI Data') then
+			EvaluateEx(f, fm, 'Barter gold', tag, debug);
+	end;
 end;
 
 // ==================================================================
@@ -365,7 +415,7 @@ begin
 
 	// v1.3.3: check flags for Buys/Sells and Services
 	if CompareNativeValues(a, am, 'Buys/Sells and Services') then begin
-		if debug then PrintDebugS(a, am, 'Buys/Sells and Services', tag);
+		if debug then PrintDebugE(a, am, '[CompareNativeValues] ' + tag);
 		AddTag(tag);
 	end;
 end;
@@ -491,7 +541,7 @@ begin
 
 	// add tag if the Behave Like Exterior flag is set ine one record but not the other
 	if CompareFlagsEx(e, m, 'DATA', 'Behave Like Exterior') then begin
-		if debug then PrintDebugS(e, m, 'DATA', tag);
+		if debug then PrintDebugE(e, m, '[CompareFlagsEx] ' + tag);
 		AddTag(tag);
 		exit;
 	end;
@@ -506,7 +556,7 @@ end;
 procedure CheckCellRecordFlags(e, m: IInterface; debug: boolean);
 var
 	sig: string;
-	f, fm: IInterface;
+	f, fm, rf, rfm: IInterface;
 begin
 	// define tag
 	tag := 'C.RecordFlags';
@@ -515,9 +565,33 @@ begin
 	// exit if tag exists
 	if TagExists(tag) then exit;
 
+	// set Record Flags elements
+	rf := GetElement(e, 'Record Header\Record Flags');
+	rfm := GetElement(m, 'Record Header\Record Flags');
+
 	// compare Record Flags elements
-	if CompareKeys(GetElement(e, 'Record Header\Record Flags'), GetElement(m, 'Record Header\Record Flags'), debug) then
+	if CompareKeys(rf, rfm, debug) then begin
+		if debug then PrintDebugE(rf, rfm, '[CompareKeys] ' + tag);
 		AddTag(tag);
+	end;
+end;
+
+// ==================================================================
+// C.SkyLighting
+procedure CheckCellSkyLighting(e, m: IInterface; debug: boolean);
+begin
+	// define tag
+	tag := 'C.SkyLighting';
+
+	// exit if tag exists
+	if TagExists(tag) then exit;
+
+	// add tag if the Behave Like Exterior flag is set ine one record but not the other
+	if CompareFlagsEx(e, m, 'DATA', 'Use Sky Lighting') then begin
+		if debug then PrintDebugE(e, m, '[CompareFlagsEx] ' + tag);
+		AddTag(tag);
+		exit;
+	end;
 end;
 
 // ==================================================================
@@ -532,7 +606,7 @@ begin
 
 	// add tag if Has Water flag is set in one record but not the other
 	if CompareFlagsEx(e, m, 'DATA', 'Has Water') then begin
-		if debug then PrintDebugS(e, m, 'DATA', tag);
+		if debug then PrintDebugE(e, m, '[CompareFlagsEx] ' + tag);
 		AddTag(tag);
 		exit;
 	end;
@@ -546,7 +620,7 @@ begin
 end;
 
 // ==================================================================
-// Delev, Relev (written by the xEdit team)
+// Delev, Relev
 procedure CheckDelevRelev(e, m: IInterface; debug: boolean);
 var
 	i, matched: integer;
@@ -561,7 +635,9 @@ begin
 	// get Leveled List Entries
 	entries := GetElement(e, 'Leveled List Entries');
 	entriesmaster := GetElement(m, 'Leveled List Entries');
-	if not Assigned(entries) or not Assigned(entriesmaster) then exit;
+
+	if not Assigned(entries) or not Assigned(entriesmaster) then
+		exit;
 
 	// count matched on reference entries
 	matched := 0;
@@ -574,22 +650,25 @@ begin
 		if Assigned(entm) then begin
 			Inc(matched);
 
-			// Relev check for changed level, count, extra data
-			coed := GetElement(ent, 'COED');
-			coedm := GetElement(entm, 'COED');
-
-			if Assigned(coed) then
-				s1 := SortKey(coed, True) else s1 := '';
-			
-			if Assigned(coedm) then
-				s2 := SortKey(coedm, True) else s2 := '';
-
-			if CompareNativeValues(ent, entm, 'LVLO\Level')
-			or CompareNativeValues(ent, entm, 'LVLO\Count')
-			or (s1 <> s2) then begin
+			if CompareNativeValues(ent, entm, 'LVLO\Level') or CompareNativeValues(ent, entm, 'LVLO\Count') then begin
 				if debug then PrintDebugE(ent, entm, '[CompareNativeValues] ' + 'Relev');
 				AddTag('Relev');
 				exit;
+			end;
+
+			// Relev check for changed level, count, extra data
+			if not (wbGameMode = gmTES4) then begin
+				coed := GetElement(ent, 'COED');
+				coedm := GetElement(entm, 'COED');
+				if Assigned(coed) then
+					s1 := SortKeyEx(coed) else s1 := '';
+				if Assigned(coedm) then
+					s2 := SortKeyEx(coedm) else s2 := '';
+				if (s1 <> s2) then begin
+					if debug then PrintDebugE(ent, entm, '[SortKeyEx] ' + 'Relev');
+					AddTag('Relev');
+					exit;
+				end;
 			end;
 		end;
 	end;
@@ -623,7 +702,7 @@ begin
 		AddTag(tag);
 		exit;
 	end;
-	
+
 	dd := GetElement(d, 'DEST');
 	dmd := GetElement(dm, 'DEST');
 
@@ -634,17 +713,15 @@ begin
 
 	// assign Destructable flags
 	if not (wbGameMode = gmTES5) then begin
-		if ElementExists(dd, 'Flags') or ElementExists(dmd, 'Flags') then begin
-			df := GetElement(dd, 'Flags');
-			dfm := GetElement(dmd, 'Flags');
-
+		df := GetElement(dd, 'Flags');
+		dfm := GetElement(dmd, 'Flags');
+		if Assigned(df) or Assigned(dfm) then begin
 			// add tag if Destructable flags exist in one record
 			if Assigned(df) <> Assigned(dfm) then begin
 				if debug then PrintDebugE(df, dfm, '[Assigned] ' + tag);
 				AddTag(tag);
 				exit;
 			end;
-
 			// evaluate Destructable flags
 			if CompareKeys(df, dfm, debug) then AddTag(tag);
 		end;
@@ -652,7 +729,7 @@ begin
 end;
 
 // ==================================================================
-// Graphics - v1.4: 100% implementation
+// Graphics
 procedure CheckGraphics(e, m: IInterface; debug: boolean);
 var
 	icon, iconm, modl, modlm, fpf, fpfm, gf, gfm, bpf, bpfm, rf, rfm: IInterface;
@@ -682,8 +759,8 @@ begin
 		EvaluateEx(e, m, 'Male world model', tag, debug);
 		EvaluateEx(e, m, 'Female world model', tag, debug);
 
-		// FNV, FO3, Oblivion
-		if (wbGameMode = gmTES5) then begin
+		// ARMO - Oblivion
+		if (wbGameMode = gmTES4) then begin
 			// evaluate Icon properties
 			EvaluateEx(e, m, 'Icon', tag, debug);
 			EvaluateEx(e, m, 'Icon 2 (female)', tag, debug);
@@ -709,28 +786,68 @@ begin
 				AddTag(tag);
 				exit;
 			end;
+		end;
 
-			// Skyrim
-		end else begin
+		// ARMO - FO3, FNV
+		if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) then begin
 			// evaluate Icon properties
-			// TODO: check Obl/Sky for paths
 			EvaluateEx(e, m, 'ICON', tag, debug);
 			EvaluateEx(e, m, 'ICO2', tag, debug);
 
-			// evaluate Biped Model properties
-			EvaluateEx(e, m, 'Male biped model', tag, debug);
-			EvaluateEx(e, m, 'Female biped model', tag, debug);
+			// assign First Person Flags elements
+			fpf := GetElement(e, 'BMDT\Biped Flags');
+			if not Assigned(fpf) then exit;
+			fpfm := GetElement(m, 'BMDT\Biped Flags');
 
-			// assign Biped Flags elements
-			bpf := GetElement(e, 'BODT\Biped Flags');
-			bpfm := GetElement(m, 'BODT\Biped Flags');
-
-			// evaluate Biped Flags
-			if CompareKeys(bpf, bpfm, debug) then begin
+			// evaluate First Person Flags
+			if CompareKeys(fpf, fpfm, debug) then begin
 				AddTag(tag);
 				exit;
 			end;
 
+			// assign General Flags elements
+			gf := GetElement(e, 'BMDT\General Flags');
+			if not Assigned(gf) then exit;
+			gfm := GetElement(m, 'BMDT\General Flags');
+
+			// evaluate General Flags
+			if CompareKeys(gf, gfm, debug) then begin
+				AddTag(tag);
+				exit;
+			end;
+		end;
+
+		// ARMO - TES5
+		if (wbGameMode = gmTES5) then begin
+			// evaluate Icon properties
+			EvaluateEx(e, m, 'Icon', tag, debug);
+			EvaluateEx(e, m, 'Icon 2 (female)', tag, debug);
+
+			// evaluate Biped Model properties
+			EvaluateEx(e, m, 'Male world model', tag, debug);
+			EvaluateEx(e, m, 'Female world model', tag, debug);
+
+			// assign First Person Flags elements
+			fpf := GetElement(e, 'BOD2\First Person Flags');
+			if not Assigned(fpf) then exit;
+			fpfm := GetElement(m, 'BOD2\First Person Flags');
+
+			// evaluate First Person Flags
+			if CompareKeys(fpf, fpfm, debug) then begin
+				AddTag(tag);
+				exit;
+			end;
+
+			// assign General Flags elements
+			gf := GetElement(e, 'BOD2\General Flags');
+			if not Assigned(gf) then exit;
+			gfm := GetElement(m, 'BOD2\General Flags');
+
+			// evaluate General Flags
+			if CompareKeys(gf, gfm, debug) then begin
+				AddTag(tag);
+				exit;
+			end;
 		end;
 	end;
 
@@ -777,7 +894,7 @@ begin
 end;
 
 // ==================================================================
-// Invent (written by the xEdit team)
+// Invent
 procedure CheckInvent(e, m: IInterface; debug: boolean);
 var
 	items, itemsmaster: IInterface;
@@ -893,7 +1010,7 @@ begin
 end;
 
 // ==================================================================
-// Sound - v1.4: 100% implementation
+// Sound
 procedure CheckSound(e, m: IInterface; debug: boolean);
 var
 	sig: string;
@@ -1026,8 +1143,11 @@ function Initialize: integer;
 var
 	tmplLoaded: string;
 begin
+	// clear
+	ClearMessages();
+
 	// prompt to write tags to file header
-	optionSelected := MessageDlg('Do you want to write any found tags to the file header?', mtConfirmation, [mbYes, mbNo, mbAbort], 0);
+	optionSelected := MessageDlg('Do you want to add suggested tags to the file header?', mtConfirmation, [mbYes, mbNo, mbAbort], 0);
 
 	// exit if the user aborted
 	if optionSelected = mrAbort then exit;
@@ -1041,7 +1161,7 @@ begin
 	if (wbGameMode = gmFNV) then AddMessage('Using record structure for Fallout: New Vegas');
 	if (wbGameMode = gmTES4) then AddMessage('Using record structure for The Elder Scrolls IV: Oblivion');
 	if (wbGameMode = gmTES5) then AddMessage('Using record structure for The Elder Scrolls V: Skyrim');
-	AddMessage('-------------------------------------------------------------------------------');
+	AddMessage('-------------------------------------------------------------------------------' + #13#10);
 end;
 
 // ==================================================================
@@ -1052,6 +1172,8 @@ var
 	sig, fm: string;
 	i: integer;
 begin
+
+	//AddMessage('[PROCESSING] ' + FullPath(e));
 
 	// exit conditions
 	if (optionSelected = mrAbort)								// user aborted
@@ -1086,265 +1208,317 @@ begin
 	// get record signature
 	sig := Signature(e);
 
-	// ==========================================================================
-	// FALLOUT 3 | FALLOUT: NEW VEGAS | SKYRIM
-	// ==========================================================================
+	// -------------------------------------------------------------------------------
+	// GROUP: [1] Supported tag exclusive to FNV
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmFNV) then begin
+	// TAG: WeaponMods
+		if (sig = 'WEAP') then
+			EvaluateEx(e, o, 'Weapon Mods', 'WeaponMods', true);
+	end; // end game
 
-	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) or (wbGameMode = gmTES5) then begin
+	// -------------------------------------------------------------------------------
+	// GROUP: Supported tags exclusive to TES4
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmTES4) then begin
 
-		// ------------------------------------------------------------------------
-		// CELL RECORD TYPE
-		// ------------------------------------------------------------------------
+	// TAG: Actors.Spells
+		if InSignatureList(sig, 'CREA, NPC_') then
+			EvaluateEx(e, o, 'Spells', 'Actors.Spells', true);
 
+	// TAG: Creatures.Blood
+		if (sig = 'CREA') then begin
+			EvaluateEx(e, o, 'NAM0', 'Creatures.Blood', true);
+			EvaluateEx(e, o, 'NAM1', 'Creatures.Blood', true);
+		end;
+
+	// TODO: Npc.EyesOnly - NOT IMPLEMENTED
+
+	// TODO: Npc.HairOnly - NOT IMPLEMENTED
+
+	// TODO: R.AddSpells - NOT IMPLEMENTED
+
+		if (sig = 'RACE') then begin
+	// TAG: R.ChangeSpells
+			EvaluateEx(e, o, 'Spells', 'R.ChangeSpells', true);
+
+	// TAG: R.Attributes-F
+			EvaluateEx(e, o, 'ATTR\Female', 'R.Attributes-F', true);
+
+	// TAG: R.Attributes-M
+			EvaluateEx(e, o, 'ATTR\Male', 'R.Attributes-M', true);
+		end;
+
+	// TAG: Roads
+		if (sig = 'ROAD') then
+			EvaluateEx(e, o, 'PGRP', 'Roads', true);
+
+	// TAG: SpellStats
+		if (sig = 'SPEL') then
+			CheckSpellStats(e, o, true);
+
+	end; // end game
+
+	// -------------------------------------------------------------------------------
+	// GROUP: [1] Supported tags exclusive to TES5
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmTES5) then begin
 		if (sig = 'CELL') then begin
-			// C.Acoustic
-			EvaluateEx(e, o, 'XCAS', 'C.Acoustic', true);
+	// TAG: C.Location
+			EvaluateEx(e, o, 'XLCN', 'C.Location', true);
 
-			// C.Climate
-			CheckCellClimate(e, o, true);
+	// TAG: C.Regions
+			EvaluateEx(e, o, 'XCLR', 'C.Regions', true);
 
-			// C.Encounter
-			EvaluateEx(e, o, 'XEZN', 'C.Encounter', true);
+	// TAG: C.SkyLighting
+			CheckCellSkyLighting(e, o, true);
+		end;
+	end; // end game
 
-			// C.ImageSpace
-			EvaluateEx(e, o, 'XCIM', 'C.ImageSpace', true);
+	// -------------------------------------------------------------------------------
+	// GROUP: [2] Supported tags exclusive to FO3 and FNV
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) then begin
+	// TAG: Destructible
+		if InSignatureList(sig, 'ACTI, ALCH, AMMO, BOOK, CONT, DOOR, FURN, IMOD, KEYM, MISC, MSTT, PROJ, TACT, TERM, WEAP') then
+			CheckDestructible(e, o, true);
 
-			// C.Light
-			EvaluateEx(e, o, 'XCLL', 'C.Light', true);
+	// TAG: Destructible - special handling for CREA and NPC_ record types
+		if InSignatureList(sig, 'CREA, NPC_') then
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
+				CheckDestructible(e, o, true);
+	end; // end game
 
-			// C.Location
-			if (wbGameMode = gmTES5) then
-				EvaluateEx(e, o, 'XLCN', 'C.Location', true);
-
-			// C.Music
-			EvaluateEx(e, o, 'XCMO', 'C.Music', true);
-
-			// C.Name
-			EvaluateEx(e, o, 'FULL', 'C.Name', true);
-
-			// C.Owner
-			EvaluateEx(e, o, 'Ownership', 'C.Owner', true);
-
-			// C.RecordFlags
-			CheckCellRecordFlags(e, o, true);
-
-			// C.Water
-			CheckCellWater(e, o, true);
+	// -------------------------------------------------------------------------------
+	// GROUP: [3] Supported tags exclusive to FO3, FNV, and TES4
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) or (wbGameMode = gmTES4) then begin
+	// TAG: Factions
+		if InSignatureList(sig, 'CREA, NPC_') then begin
+			if (wbGameMode = gmTES4) then begin
+				CheckActorsFactions(e, o, true);
+			end else begin
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Factions') then
+				CheckActorsFactions(e, o, true);
+			end;
 		end;
 
+	// TAG: Relations
+		if (sig = 'FACT') then
+			EvaluateEx(e, o, 'Relations', 'Relations', true);
+	end; // end game
 
-		// ------------------------------------------------------------------------
-		// LEVELED LIST RECORD TYPES
-		// ------------------------------------------------------------------------
-
-		// Delev, Relev
-		if InSignatureList(sig, 'LVLC, LVLI, LVLN, LVSP') then
-			CheckDelevRelev(e, o, true);
-
-
-		// ------------------------------------------------------------------------
-		// CONTAINER RECORD TYPE
-		// ------------------------------------------------------------------------
-
-		// Invent
-		if (sig = 'CONT') then
-			CheckInvent(e, o, true);
-
-
-		// ------------------------------------------------------------------------
-		// ACTOR RECORD TYPES - SPECIAL HANDLING
-		// ------------------------------------------------------------------------
-
+	// -------------------------------------------------------------------------------
+	// GROUP: [3] Supported tags exclusive to FO3, FNV, and TES5
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) or (wbGameMode = gmTES5) then begin
 		if InSignatureList(sig, 'CREA, NPC_') then begin
-			// Invent - special handling for CREA and NPC_ record types
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Inventory') then
-				CheckInvent(e, o, true);
-
-			// Names - special handling for CREA and NPC_ record types
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Base Data') then
-				EvaluateEx(e, o, 'FULL', 'Names', true);
-
-			// Sound - special handling for CREA record type
-			if (sig = 'CREA') then
-				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
-					CheckSound(e, o, true);
-		end;
-
-
-		// ------------------------------------------------------------------------
-		// VARIOUS RECORD TYPES
-		// ------------------------------------------------------------------------
-
-		// Graphics - v1.4: 100% implementation
-		if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, ARMO, BOOK, BSGN, CLAS, CLOT, CREA, DOOR, EFSH, FLOR, FURN, GRAS, INGR, KEYM, LIGH, LSCR, LTEX, MGEF, MISC, REGN, SGST, SLGM, STAT, TREE, WEAP') then
-			CheckGraphics(e, o, true);
-
-		// Names - v1.4: 100% implementation
-		if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, ARMO, BOOK, BSGN, CLAS, CLOT, CONT, DIAL, DOOR, ENCH, EYES, FACT, FLOR, FURN, HAIR, INGR, KEYM, LIGH, MGEF, MISC, QUST, RACE, SGST, SLGM, SPEL, WEAP, WRLD') then
-			EvaluateEx(e, o, 'FULL', 'Names', true);
-
-		// Sound - v1.4: 100% implementation
-		if InSignatureList(sig, 'ACTI, CONT, DOOR, LIGH, MGEF, WTHR') then
-			CheckSound(e, o, true);
-
-		// Stats - v1.4: 100% implementation (probably)
-		if InSignatureList(sig, 'ALCH, AMMO, APPA, ARMO, BOOK, CLOT, INGR, KEYM, LIGH, MISC, SGST, SLGM, WEAP') then
-			CheckStats(e, o, true);
-
-
-		// ACTOR RECORD TYPES
-		// ------------------------------------------------------------------------
-
-		if InSignatureList(sig, 'CREA, NPC_') then begin
-			// Actors.ACBS
+	// TAG: Actors.ACBS
 			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Stats') then
 				CheckActorsACBS(e, o, true);
 
-			// Actors.AIData
+	// TAG: Actors.AIData
 			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use AI Data') then
 				CheckActorsAIData(e, o, true);
 
-			// Actors.AIPackages
+	// TAG: Actors.AIPackages
 			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use AI Packages') then
 				CheckActorsAIPackages(e, o, true);
 
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then begin
-				// Actors.Skeleton
-				CheckActorsSkeleton(e, o, true);
-
-				// Destructible - special handling for CREA and NPC_ record types
-				CheckDestructible(e, o, true);
-			end;
-
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Traits') then begin
-				// Actors.CombatStyle
-				EvaluateEx(e, o, 'ZNAM', 'Actors.CombatStyle', true);
-
-				// Actors.DeathItem
-				EvaluateEx(e, o, 'INAM', 'Actors.DeathItem', true);
-			end;
-
-			// Actors.Stats
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Stats') then
-				CheckActorsStats(e, o, true);
-
-			// Factions
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Factions') then
-				CheckActorsFactions(e, o, true);
-
-			// Scripts
-			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Script') then
-				EvaluateEx(e, o, 'SCRI', 'Scripts', true);
-
-			// CREATURE RECORD TYPE
-			// ----------------------------------------------------------------------
-
-			// Actors.Anims
+	// TAG: Actors.Anims
 			if (sig = 'CREA') then
 				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
 					EvaluateEx(e, o, 'KFFZ', 'Actors.Anims', true);
 
-			// NPC_ RECORD TYPE
-			// ----------------------------------------------------------------------
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Traits') then begin
+	// TAG: Actors.CombatStyle
+				EvaluateEx(e, o, 'ZNAM', 'Actors.CombatStyle', true);
+
+	// TAG: Actors.DeathItem
+				EvaluateEx(e, o, 'INAM', 'Actors.DeathItem', true);
+			end;
+
+	// TAG: Actors.Skeleton
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
+				CheckActorsSkeleton(e, o, true);
+
+	// TAG: Actors.Stats
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Stats') then
+				CheckActorsStats(e, o, true);
+
+	// TODO: IIM - NOT IMPLEMENTED
+
+	// TODO: MustBeActiveIfImported - NOT IMPLEMENTED
 
 			if (sig = 'NPC_') then begin
 				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Traits') then begin
-					// NPC.Class
+	// TAG: NPC.Class
 					EvaluateEx(e, o, 'CNAM', 'NPC.Class', true);
 
-					// NPC.Race
+	// TAG: NPC.Race
 					EvaluateEx(e, o, 'RNAM', 'NPC.Race', true);
 				end;
 
+	// TAG: NPCFaces
 				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
-					// NPCFaces
 					CheckNPCFaces(e, o, true);
 			end;
 
+	// TAG: Scripts
+			if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Script') then
+				EvaluateEx(e, o, 'SCRI', 'Scripts', true);
 		end;
 
-		// FACTION RECORD TYPE
-		// ------------------------------------------------------------------------
+		if (sig = 'CELL') then begin
+	// TAG: C.Acoustic
+			EvaluateEx(e, o, 'XCAS', 'C.Acoustic', true);
 
-		// Relations
-		if (sig = 'FACT') then
-			EvaluateEx(e, o, 'Relations', 'Relations', true);
+	// TAG: C.Encounter
+			EvaluateEx(e, o, 'XEZN', 'C.Encounter', true);
 
-		// RACE RECORD TYPE
-		// ------------------------------------------------------------------------
+	// TAG: C.ImageSpace
+			EvaluateEx(e, o, 'XCIM', 'C.ImageSpace', true);
+		end;
 
 		if (sig = 'RACE') then begin
-			// Body-F
+	// TAG: Body-F
 			CheckRaceBody(e, o, 'Body-F', true);
 
-			// Body-M
+	// TAG: Body-M
 			CheckRaceBody(e, o, 'Body-M', true);
 
-			// Body-Size-F
+	// TAG: Body-Size-F
 			CheckRaceBody(e, o, 'Body-Size-F', true);
 
-			// Body-Size-M
+	// TAG: Body-Size-M
 			CheckRaceBody(e, o, 'Body-Size-M', true);
 
-			// Eyes
+	// TAG: Eyes
 			EvaluateEx(e, o, 'ENAM', 'Eyes', true);
 
-			// Hair
+	// TAG: Hair
 			EvaluateEx(e, o, 'HNAM', 'Hair', true);
 
-			// R.Description
+	// TAG: R.Description
 			EvaluateEx(e, o, 'DESC', 'R.Description', true);
 
-			// R.Ears
+	// TAG: R.Ears
 			CheckRaceHead(e, o, 'R.Ears', true);
 
-			// R.Head
+	// TAG: R.Head
 			CheckRaceHead(e, o, 'R.Head', true);
 
-			// R.Mouth
+	// TAG: R.Mouth
 			CheckRaceHead(e, o, 'R.Mouth', true);
 
-			// R.Relations
+	// TAG: R.Relations
 			EvaluateEx(e, o, 'Relations', 'R.Relations', true);
 
-			// R.Skills
+	// TAG: R.Skills
 			EvaluateEx(e, o, 'DATA\Skill Boosts', 'R.Skills', true);
 
-			// R.Teeth
+	// TAG: R.Teeth
 			CheckRaceHead(e, o, 'R.Teeth', true);
 
-			// Voice-F
+	// TAG: Voice-F
 			EvaluateEx(e, o, 'VTCK\Voice #1 (Female)', 'Voice-F', true);
 
-			// Voice-M
+	// TAG: Voice-M
 			EvaluateEx(e, o, 'VTCK\Voice #0 (Male)', 'Voice-M', true);
 		end;
 
-		// ACTOR EFFECT RECORD TYPE
-		// --------------------------------------------------------------
+	// TODO: ScriptContents - SHOULD NOT BE IMPLEMENTED
+		// -- According to the Wrye Bash Readme: "Should not be used. Can cause serious issues."
 
-		// SpellStats
-		if (sig = 'SPEL') then
-			CheckSpellStats(e, o, true);
-
-		// WEAPON RECORD TYPE
-		// --------------------------------------------------------------
-
-		// WeaponMods
-		if (sig = 'WEAP') then
-			EvaluateEx(e, o, 'Weapon Mods', 'WeaponMods', true);
-
-		// VARIOUS RECORD TYPES
-		// --------------------------------------------------------------
-
-		// Destructible
-		if InSignatureList(sig, 'ACTI, ALCH, AMMO, BOOK, CONT, DOOR, FURN, IMOD, KEYM, MISC, MSTT, PROJ, TACT, TERM, WEAP') then
-			CheckDestructible(e, o, true);
-
-		// Scripts
+	// TAG: Scripts
 		if InSignatureList(sig, 'ACTI, ALCH, ARMO, CONT, DOOR, FLOR, FURN, INGR, KEYM, LIGH, LVLC, MISC, QUST, WEAP') then
 			EvaluateEx(e, o, 'SCRI', 'Scripts', true);
+	end; // end game
 
+	// -------------------------------------------------------------------------------
+	// GROUP: [4] Supported tags exclusive to FO3, FNV, TES4, and TES5
+	// -------------------------------------------------------------------------------
+	if (wbGameMode = gmFO3) or (wbGameMode = gmFNV) or (wbGameMode = gmTES4) or (wbGameMode = gmTES5) then begin
+		if (sig = 'CELL') then begin
+	// TAG: C.Climate
+			CheckCellClimate(e, o, true);
+
+	// TAG: C.Light
+			EvaluateEx(e, o, 'XCLL', 'C.Light', true);
+
+	// TAG: C.Music
+			EvaluateEx(e, o, 'XCMO', 'C.Music', true);
+
+	// TAG: C.Name
+			EvaluateEx(e, o, 'FULL', 'C.Name', true);
+
+	// TAG: C.Owner
+			EvaluateEx(e, o, 'Ownership', 'C.Owner', true);
+
+	// TAG: C.RecordFlags
+			CheckCellRecordFlags(e, o, true);
+
+	// TAG: C.Water
+			CheckCellWater(e, o, true);
+		end;
+
+	// TODO: Deactivate - NOT IMPLEMENTED
+
+	// TAG: Delev, Relev
+		if InSignatureList(sig, 'LVLC, LVLI, LVLN, LVSP') then
+			CheckDelevRelev(e, o, true);
+
+	// TODO: Filter - NOT IMPLEMENTED
+
+	// TAG: Graphics
+		if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, ARMO, BOOK, BSGN, CLAS, CLOT, CREA, DOOR, EFSH, FLOR, FURN, GRAS, INGR, KEYM, LIGH, LSCR, LTEX, MGEF, MISC, REGN, SGST, SLGM, STAT, TREE, WEAP') then
+			CheckGraphics(e, o, true);
+
+	// TAG: Invent
+		if (sig = 'CONT') then
+			CheckInvent(e, o, true);
+
+	// TAG: Names
+		if InSignatureList(sig, 'ACTI, ALCH, AMMO, APPA, ARMO, BOOK, BSGN, CLAS, CLOT, CONT, DIAL, DOOR, ENCH, EYES, FACT, FLOR, FURN, HAIR, INGR, KEYM, LIGH, MGEF, MISC, QUST, RACE, SGST, SLGM, SPEL, WEAP, WRLD') then
+			EvaluateEx(e, o, 'FULL', 'Names', true);
+
+	// TODO: NoMerge - NOT IMPLEMENTED
+
+	// TAG: Sound
+		if InSignatureList(sig, 'ACTI, CONT, DOOR, LIGH, MGEF, WTHR') then
+			CheckSound(e, o, true);
+
+		if InSignatureList(sig, 'CREA, NPC_') then begin
+
+			if (wbGameMode = gmTES4) then begin
+	// TAG: Invent - special handling for CREA and NPC_ record types
+				CheckInvent(e, o, true);
+
+	// TAG: Names - special handling for CREA and NPC_ record types
+				EvaluateEx(e, o, 'FULL', 'Names', true);
+
+	// TAG: Sound - special handling for CREA record type
+				if (sig = 'CREA') then
+					CheckSound(e, o, true);
+
+			end else begin
+				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Inventory') then
+					CheckInvent(e, o, true);
+
+	// TAG: Names - special handling for CREA and NPC_ record types
+				if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Base Data') then
+					EvaluateEx(e, o, 'FULL', 'Names', true);
+
+	// TAG: Sound - special handling for CREA record type
+				if (sig = 'CREA') then
+					if not CompareFlagsOr(e, o, 'ACBS\Template Flags', 'Use Model/Animation') then
+						CheckSound(e, o, true);
+			end;
+		end;
+
+	// TAG: Stats
+		if InSignatureList(sig, 'ALCH, AMMO, APPA, ARMO, BOOK, CLOT, INGR, KEYM, LIGH, MISC, SGST, SLGM, WEAP') then
+			CheckStats(e, o, true);
 	end; // end game
 end;
 
@@ -1353,47 +1527,100 @@ end;
 function Finalize: integer;
 var
 	hdr, desc: IInterface;
+	sTags, eTags, dTags, bTags, tTags: TSTringList;
+	sDescription: string;
 begin
+	sTags := TStringList.Create;
+	eTags := TStringList.Create;
+	dTags := TStringList.Create;
+	bTags := TStringList.Create;
+	tTags := TStringList.Create;
+
 	// exit conditions
 	if (optionSelected = mrAbort) or (not Assigned(slTags)) or (not Assigned(fn)) then exit;
 
-	// sort list of tags
+	// sort list of suggested tags
 	slTags.Sort;
 
 	// output file name
-	AddMessage(#13#10 + fn);
+	AddMessage(#13#10 + '-------------------------------------------------------------------------------');
+	AddMessage(fn);
+	AddMessage('-------------------------------------------------------------------------------' + #13#10);
 
-	// if any tags were generated
+	// if any suggested tags were generated
 	if (slTags.Count > 0) then begin
-		if (optionSelected = 6) then begin
-			hdr := GetElement(f, 'TES4');
+		hdr := GetElement(f, 'TES4');
 
-			// add tags to description element
-			if Assigned(hdr) then begin
-				desc := GetElement(hdr, 'SNAM');
-				if not Assigned(desc) then
-					desc := Add(hdr, 'SNAM', false);
-				SetEditValue(desc, Format('{{BASH:%s}}', [slTags.DelimitedText]));
-				AddMessage('Added ' + IntToStr(slTags.Count) + ' tags to file header: ' + #13#10 + Format('{{BASH:%s}}', [slTags.DelimitedText]));
+		// determine if the header record exists
+		if Assigned(hdr) then begin
+			desc := GetElement(hdr, 'SNAM');
+			sTags.CommaText := slTags.CommaText;
+			tTags.CommaText := slTags.CommaText;
+			eTags.CommaText := GetSubstring(GetEditValue(desc), '{{BASH:', '}}');
+			dTags.CommaText := GetDiffList(eTags, sTags);
+
+			// exit if existing and suggested tags are the same
+			if (eTags.CommaText = sTags.CommaText) then begin
+				AddMessage('No tags suggested. Exiting.' + #13#10);
+				AddMessage('-------------------------------------------------------------------------------' + #13#10);
+				exit;
 			end;
-		end
-		else if (optionSelected = 7) then
-			AddMessage('Suggesting ' + IntToStr(slTags.Count) + ' tags: ' + #13#10 + Format('{{BASH:%s}}', [slTags.DelimitedText]));
-	end
 
-	// if no tags were generated
-	else begin
-		AddMessage('No tags suggested');
+		// exit if the header record doesn't exist
+		end else begin
+			AddMessage('Header record not found. Nothing to do. Exiting.' + #13#10);
+			AddMessage('-------------------------------------------------------------------------------' + #13#10);
+			exit;
+		end;
 
-		// remove description element
-		desc := GetElement(GetElement(f, 'TES4'), 'SNAM');
-		if (optionSelected = 6) and Assigned(desc) then
-			Remove(desc);
+		// write tags
+		if (optionSelected = 6) then begin
+			// if the description element doesn't exist, add the element
+			if not Assigned(desc) then
+				desc := Add(hdr, 'SNAM', false);
+
+			if (eTags <> sTags) then begin
+				// store description
+				sDescription := GetEditValue(desc);
+
+				// remove existing tags, if any; trim regardless
+				sDescription := Trim(RemoveFromEnd(sDescription, Format('{{BASH:%s}}', [eTags.DelimitedText])));
+
+				// write new description
+				SetEditValue(desc, sDescription + #13#10 + #13#10 + Format('{{BASH:%s}}', [slTags.DelimitedText]));
+			end;
+
+			// output bad tags
+			bTags.CommaText := GetDiffList(tTags, eTags);
+			GenerateTagOutput(bTags, 'bad tag removed:', 'bad tags removed:', 'No bad tags found.');
+
+			// output to log
+			GenerateTagOutput(dTags, 'tag added to file header:', 'tags added to file header:', 'No tags added.');
+		end;
+
+		// suggest tags only and output to log
+		if (optionSelected = 7) then begin
+			// output existing tags
+			GenerateTagOutput(eTags, 'existing tag found:', 'existing tags found:', 'No existing tags found.');
+
+			// output bad tags
+			bTags.CommaText := GetDiffList(tTags, eTags);
+			GenerateTagOutput(bTags, 'bad tag found:', 'bad tags found:', 'No bad tags found.');
+
+			// output suggested tags
+			GenerateTagOutput(dTags, 'suggested tag to add:', 'suggested tags to add:', 'No suggested tags to add.');
+
+			// output all suggested tags
+			GenerateTagOutput(slTags, 'suggested tag overall:', 'suggested tags overall:', 'No suggested tags overall.');
+		end;
 	end;
 
-	AddMessage(#13#10 + '-------------------------------------------------------------------------------' + #13#10);
-
 	slTags.Free;
+	sTags.Free;
+	eTags.Free;
+	dTags.Free;
+	bTags.Free;
+	tTags.Free;
 end;
 
 end.
